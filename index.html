@@ -147,9 +147,32 @@
         </div>
     </div>
 
-    <script>
-        const STORAGE_KEY = 'pelacak_jurnal_5hari_v1';
+    <!-- Firebase SDK (Modular CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB104GkJ2kD75zitiens1H2QU8AWVX-Lsg",
+            authDomain: "jurnal-harianku.firebaseapp.com",
+            projectId: "jurnal-harianku",
+            storageBucket: "jurnal-harianku.appspot.com",
+            messagingSenderId: "882678031341",
+            appId: "1:882678031341:web:a804f699e4f1b632dfde4"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const journalRef = ref(db, 'jurnal_harian_data');
+
+        let remoteData = {};
         let weekOffset = 0;
+
+        // Mendengarkan perubahan data secara Real-time dari Firebase
+        onValue(journalRef, (snapshot) => {
+            remoteData = snapshot.val() || {};
+            renderApp();
+        });
 
         function formatDateKey(dateObj) {
             const year = dateObj.getFullYear();
@@ -174,80 +197,24 @@
             return monday;
         }
 
-        function getStoredData() {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-        }
+        window.toggleDateStatus = function(dateKey) {
+            let currentRecord = remoteData[dateKey] || { status: 'Belum' };
+            let updatedRecord;
 
-        function saveStoredData(data) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        }
-
-        function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
-            const modal = document.getElementById('customModal');
-            const modalCard = document.getElementById('modalCard');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalSubtitle = document.getElementById('modalSubtitle');
-            const modalIcon = document.getElementById('modalIcon');
-            const modalMessage = document.getElementById('modalMessage');
-            const modalCancelBtn = document.getElementById('modalCancelBtn');
-            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-
-            modalTitle.innerText = title || "Pemberitahuan";
-            modalSubtitle.innerText = subtitle || "Info Sistem";
-            modalIcon.innerText = icon || "ℹ️";
-            modalMessage.innerText = message || "";
-
-            if (isConfirm) {
-                modalCancelBtn.classList.remove('hidden');
-                modalConfirmBtn.innerText = "Ya, Lanjutkan";
-                modalConfirmBtn.onclick = function() {
-                    closeCustomModal();
-                    if (onConfirm) onConfirm();
-                };
-            } else {
-                modalCancelBtn.classList.add('hidden');
-                modalConfirmBtn.innerText = "Mengerti";
-                modalConfirmBtn.onclick = function() {
-                    closeCustomModal();
-                };
-            }
-
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modalCard.classList.remove('scale-95', 'opacity-0');
-                modalCard.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
-
-        function closeCustomModal() {
-            const modal = document.getElementById('customModal');
-            const modalCard = document.getElementById('modalCard');
-            
-            modalCard.classList.remove('scale-100', 'opacity-100');
-            modalCard.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 200);
-        }
-
-        function toggleDateStatus(dateKey) {
-            let data = getStoredData();
-
-            if (!data[dateKey] || data[dateKey].status !== 'Sudah') {
+            if (currentRecord.status !== 'Sudah') {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                data[dateKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                updatedRecord = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             } else {
-                data[dateKey] = { status: 'Belum', timestamp: null };
+                updatedRecord = { status: 'Belum', timestamp: null };
             }
 
-            saveStoredData(data);
-            renderApp();
+            // Kirim data terbaru ke Firebase (Real-time update)
+            set(ref(db, `jurnal_harian_data/${dateKey}`), updatedRecord);
         }
 
-        function toggleTodayStatus() {
+        window.toggleTodayStatus = function() {
             const today = new Date();
             if (isWeekend(today)) {
                 openCustomModal({
@@ -262,7 +229,7 @@
             toggleDateStatus(formatDateKey(today));
         }
 
-        function resetCurrentWeek() {
+        window.resetCurrentWeek = function() {
             openCustomModal({
                 title: "Reset Minggu Ini",
                 subtitle: "Konfirmasi Tindakan",
@@ -271,20 +238,18 @@
                 isConfirm: true,
                 onConfirm: function() {
                     const monday = getMondayOfWeek(weekOffset);
-                    let data = getStoredData();
-                    
+                    let updates = {};
                     for (let i = 0; i < 5; i++) {
                         const d = new Date(monday);
                         d.setDate(monday.getDate() + i);
-                        delete data[formatDateKey(d)];
+                        updates[formatDateKey(d)] = null; // Menghapus data di Firebase
                     }
-                    saveStoredData(data);
-                    renderApp();
+                    update(journalRef, updates);
                 }
             });
         }
 
-        function changeWeek(delta) {
+        window.changeWeek = function(delta) {
             weekOffset += delta;
             renderApp();
         }
@@ -374,7 +339,7 @@
         }
 
         function renderApp() {
-            const data = getStoredData();
+            const data = remoteData;
             const today = new Date();
             const todayKey = formatDateKey(today);
             const todayIsWeekend = isWeekend(today);
@@ -471,10 +436,58 @@
 
             document.getElementById('weekProgressBadge').innerText = `${weekFilledCount}/5 Diisi`;
         }
+    </script>
 
-        window.onload = function() {
-            renderApp();
-        };
+    <!-- Global functions helper untuk Modal -->
+    <script>
+        function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+            modalTitle.innerText = title || "Pemberitahuan";
+            modalSubtitle.innerText = subtitle || "Info Sistem";
+            modalIcon.innerText = icon || "ℹ️";
+            modalMessage.innerText = message || "";
+
+            if (isConfirm) {
+                modalCancelBtn.classList.remove('hidden');
+                modalConfirmBtn.innerText = "Ya, Lanjutkan";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                    if (onConfirm) onConfirm();
+                };
+            } else {
+                modalCancelBtn.classList.add('hidden');
+                modalConfirmBtn.innerText = "Mengerti";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                };
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalCard.classList.remove('scale-95', 'opacity-0');
+                modalCard.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCustomModal() {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            
+            modalCard.classList.remove('scale-100', 'opacity-100');
+            modalCard.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
     </script>
 </body>
 </html>
