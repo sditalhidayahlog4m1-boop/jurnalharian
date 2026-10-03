@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pelacak Jurnal Harian - SDIT Al-Hidayah Logam</title>
+    
+    <!-- Favicon / Icon Tab Browser -->
+    <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1GyrqTrmlwx8i2Y9_snaGgLVM8rrGdbg5">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                        },
+                        dark: {
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white antialiased">
+
+    <header class="sticky top-0 z-40 backdrop-blur-xl bg-dark-950/90 border-b border-slate-800/80 px-4 py-3.5">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-11 h-11 bg-white/10 p-1 rounded-xl border border-slate-700/60 flex items-center justify-center shadow-md overflow-hidden">
+                    <img src="https://lh3.googleusercontent.com/d/1GyrqTrmlwx8i2Y9_snaGgLVM8rrGdbg5" id="schoolLogo" alt="Logo SDIT Al-Hidayah Logam" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="font-bold text-base leading-tight text-white">Pelacak Jurnal</h1>
+                    <p class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">SDIT Al-Hidayah Logam</p>
+                </div>
+            </div>
+
+            <!-- Total Terisi Minggu Ini Badge -->
+            <div id="weekProgressBadge" class="bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-xs font-semibold text-emerald-400">
+                0/5 Diisi
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md w-full mx-auto p-4 flex-1 space-y-4">
+        
+        <!-- Navigasi Rentang Minggu -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between shadow-sm">
+            <button onclick="changeWeek(-1)" class="p-2 hover:bg-slate-800 active:scale-95 text-slate-300 rounded-xl transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            
+            <div class="text-center">
+                <div id="weekLabel" class="text-xs font-bold text-white">Minggu Ini</div>
+                <div id="weekRangeDisplay" class="text-[11px] text-slate-400 font-medium">Memuat tanggal...</div>
+            </div>
+
+            <button onclick="changeWeek(1)" class="p-2 hover:bg-slate-800 active:scale-95 text-slate-300 rounded-xl transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="alertBanner" class="rounded-2xl p-3.5 border transition-all duration-300 shadow-md relative overflow-hidden">
+            <div id="alertBannerBg" class="absolute inset-0 opacity-15"></div>
+            <div class="relative z-10 flex items-center space-x-3">
+                <div id="alertIcon" class="text-xl">ℹ️</div>
+                <div class="flex-1">
+                    <h2 id="alertTitle" class="font-bold text-xs text-white">Status Pengisian</h2>
+                    <p id="alertDesc" class="text-[11px] text-slate-300 mt-0.5 leading-tight">Memeriksa status...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+            <!-- Tombol 1: Buka Form Jurnal -->
+            <a href="https://cloud.seatable.io/dtable/forms/0d77e0bd-aa63-4d52-836d-e6bda0b236f6/#" target="_self" 
+               class="bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold py-3 px-3 rounded-2xl text-center shadow-md shadow-brand-600/20 transition-all flex items-center justify-center space-x-1.5 text-xs border border-brand-500/40">
+                <span>Buka Form Jurnal</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            </a>
+
+            <!-- Tombol 2: Tandai Selesai Hari Ini -->
+            <button onclick="toggleTodayStatus()" id="todayActionBtn" 
+                class="bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold py-3 px-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/20 border border-emerald-500 flex items-center justify-center space-x-1.5">
+                <span id="todayActionIcon">✓</span>
+                <span id="todayActionText">Selesai Hari Ini</span>
+            </button>
+        </div>
+
+        <div class="space-y-2 pt-1">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">Jurnal 5 Hari Kerja</h3>
+                <button onclick="resetCurrentWeek()" class="text-[10px] text-slate-500 hover:text-slate-400 font-medium">Reset Minggu Ini</button>
+            </div>
+
+            <!-- Container Khusus 5 Baris Hari Kerja -->
+            <div id="weekdayListContainer" class="space-y-2">
+                <!-- 5 Hari (Senin - Jumat) di-render via JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Custom -->
+    <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden transition-all duration-200">
+        <div id="modalCard" class="bg-slate-900 border border-slate-800 rounded-3xl max-w-xs w-full p-5 shadow-2xl space-y-4 transform transition-all scale-95 opacity-0">
+            <div class="flex items-center space-x-3">
+                <div id="modalIconBox" class="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 text-xl flex items-center justify-center">
+                    <span id="modalIcon">⚠️</span>
+                </div>
+                <div>
+                    <h3 id="modalTitle" class="font-bold text-slate-100 text-xs">Pemberitahuan</h3>
+                    <p id="modalSubtitle" class="text-[10px] text-slate-400">Info Sistem</p>
+                </div>
+            </div>
+            <p id="modalMessage" class="text-xs text-slate-300 leading-relaxed">Pesan modal di sini.</p>
+            <div id="modalActions" class="flex items-center space-x-2 pt-1">
+                <button id="modalCancelBtn" onclick="closeCustomModal()" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-medium rounded-xl text-xs transition-all border border-slate-700">Batal</button>
+                <button id="modalConfirmBtn" class="flex-1 py-2.5 px-3 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-brand-600/30 border border-brand-500">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'pelacak_jurnal_5hari_v1';
+        let weekOffset = 0;
+
+        function formatDateKey(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function isWeekend(dateObj) {
+            const day = dateObj.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function getMondayOfWeek(offset = 0) {
+            const today = new Date();
+            const day = today.getDay();
+            const diffToMonday = today.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const monday = new Date(today);
+            monday.setDate(diffToMonday + (offset * 7));
+            monday.setHours(0, 0, 0, 0);
+            return monday;
+        }
+
+        function getStoredData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        }
+
+        function saveStoredData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+            modalTitle.innerText = title || "Pemberitahuan";
+            modalSubtitle.innerText = subtitle || "Info Sistem";
+            modalIcon.innerText = icon || "ℹ️";
+            modalMessage.innerText = message || "";
+
+            if (isConfirm) {
+                modalCancelBtn.classList.remove('hidden');
+                modalConfirmBtn.innerText = "Ya, Lanjutkan";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                    if (onConfirm) onConfirm();
+                };
+            } else {
+                modalCancelBtn.classList.add('hidden');
+                modalConfirmBtn.innerText = "Mengerti";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                };
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalCard.classList.remove('scale-95', 'opacity-0');
+                modalCard.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCustomModal() {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            
+            modalCard.classList.remove('scale-100', 'opacity-100');
+            modalCard.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        function toggleDateStatus(dateKey) {
+            let data = getStoredData();
+
+            if (!data[dateKey] || data[dateKey].status !== 'Sudah') {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                data[dateKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+            } else {
+                data[dateKey] = { status: 'Belum', timestamp: null };
+            }
+
+            saveStoredData(data);
+            renderApp();
+        }
+
+        function toggleTodayStatus() {
+            const today = new Date();
+            if (isWeekend(today)) {
+                openCustomModal({
+                    title: "Akhir Pekan",
+                    subtitle: "Info Pengisian",
+                    icon: "☕",
+                    message: "Hari ini adalah akhir pekan (Sabtu/Minggu). Pengisian jurnal hanya berlaku untuk hari Senin sampai Jumat.",
+                    isConfirm: false
+                });
+                return;
+            }
+            toggleDateStatus(formatDateKey(today));
+        }
+
+        function resetCurrentWeek() {
+            openCustomModal({
+                title: "Reset Minggu Ini",
+                subtitle: "Konfirmasi Tindakan",
+                icon: "⚠️",
+                message: "Apakah Anda yakin ingin mereset status pengisian jurnal 5 hari kerja pada minggu ini?",
+                isConfirm: true,
+                onConfirm: function() {
+                    const monday = getMondayOfWeek(weekOffset);
+                    let data = getStoredData();
+                    
+                    for (let i = 0; i < 5; i++) {
+                        const d = new Date(monday);
+                        d.setDate(monday.getDate() + i);
+                        delete data[formatDateKey(d)];
+                    }
+                    saveStoredData(data);
+                    renderApp();
+                }
+            });
+        }
+
+        function changeWeek(delta) {
+            weekOffset += delta;
+            renderApp();
+        }
+
+        function calculateMissedWeekdays(data) {
+            const today = new Date();
+            let currentDate = new Date(today);
+            let missedCount = 0;
+
+            for (let i = 0; i < 30; i++) {
+                if (isWeekend(currentDate)) {
+                    currentDate.setDate(currentDate.getDate() - 1);
+                    continue;
+                }
+
+                const key = formatDateKey(currentDate);
+                const record = data[key] || { status: 'Belum' };
+
+                if (record.status === 'Belum') {
+                    missedCount++;
+                } else {
+                    break;
+                }
+
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+
+            return missedCount;
+        }
+
+        function renderAlertBanner(data, weekDays) {
+            const today = new Date();
+            const todayKey = formatDateKey(today);
+            const todayIsWeekend = isWeekend(today);
+            const todayRecord = data[todayKey] || { status: 'Belum' };
+
+            const alertBanner = document.getElementById('alertBanner');
+            const alertBannerBg = document.getElementById('alertBannerBg');
+            const alertIcon = document.getElementById('alertIcon');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertDesc = document.getElementById('alertDesc');
+
+            let weekFilledCount = 0;
+            weekDays.forEach(d => {
+                if (data[formatDateKey(d)]?.status === 'Sudah') weekFilledCount++;
+            });
+
+            if (weekFilledCount === 5) {
+                alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-emerald-950/50 border-emerald-500/40";
+                alertBannerBg.className = "absolute inset-0 opacity-20 bg-emerald-500";
+                alertIcon.innerText = "🌟";
+                alertTitle.innerText = "Luar Biasa!";
+                alertTitle.className = "font-bold text-xs text-emerald-400";
+                alertDesc.innerText = "Semua 5 jurnal hari kerja minggu ini telah terisi dengan lengkap.";
+            } else if (todayIsWeekend) {
+                alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-indigo-950/40 border-indigo-500/30";
+                alertBannerBg.className = "absolute inset-0 opacity-20 bg-indigo-500";
+                alertIcon.innerText = "☕";
+                alertTitle.innerText = "Akhir Pekan (Sabtu / Minggu)";
+                alertTitle.className = "font-bold text-xs text-indigo-300";
+                alertDesc.innerText = "Tidak ada kewajiban mengisi jurnal hari ini. Selamat beristirahat!";
+            } else if (todayRecord.status === 'Sudah') {
+                alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-emerald-950/40 border-emerald-500/30";
+                alertBannerBg.className = "absolute inset-0 opacity-20 bg-emerald-500";
+                alertIcon.innerText = "🎉";
+                alertTitle.innerText = "Jurnal Hari Ini Selesai";
+                alertTitle.className = "font-bold text-xs text-emerald-400";
+                alertDesc.innerText = `Terima kasih! Dicatat pada ${todayRecord.timestamp}.`;
+            } else {
+                const missedCount = calculateMissedWeekdays(data);
+                if (missedCount >= 2) {
+                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-rose-950/60 border-rose-500/50 animate-pulse";
+                    alertBannerBg.className = "absolute inset-0 opacity-20 bg-rose-500";
+                    alertIcon.innerText = "🚨";
+                    alertTitle.className = `Perhatian: ${missedCount} Hari Kerja Terlewat!`;
+                    alertTitle.className = "font-bold text-xs text-rose-300";
+                    alertDesc.innerText = "Segera buka form jurnal untuk melengkapi hari yang tertinggal.";
+                } else {
+                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-amber-950/40 border-amber-500/40";
+                    alertBannerBg.className = "absolute inset-0 opacity-20 bg-amber-500";
+                    alertIcon.innerText = "⚠️";
+                    alertTitle.innerText = "Hari ini belum diisi";
+                    alertTitle.className = "font-bold text-xs text-amber-400";
+                    alertDesc.innerText = "Klik 'Buka Form Jurnal' di bawah, lalu tandai selesai.";
+                }
+            }
+        }
+
+        function renderApp() {
+            const data = getStoredData();
+            const today = new Date();
+            const todayKey = formatDateKey(today);
+            const todayIsWeekend = isWeekend(today);
+
+            const monday = getMondayOfWeek(weekOffset);
+            const weekDays = [];
+            for (let i = 0; i < 5; i++) {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                weekDays.push(d);
+            }
+
+            const friday = weekDays[4];
+            const formatDateShort = (d) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            document.getElementById('weekRangeDisplay').innerText = `${formatDateShort(monday)} – ${formatDateShort(friday)}`;
+            
+            const weekLabel = document.getElementById('weekLabel');
+            if (weekOffset === 0) weekLabel.innerText = "Minggu Ini";
+            else if (weekOffset === -1) weekLabel.innerText = "Minggu Lalu";
+            else if (weekOffset === 1) weekLabel.innerText = "Minggu Depan";
+            else weekLabel.innerText = `${Math.abs(weekOffset)} Minggu ${weekOffset < 0 ? 'Lalu' : 'Mendatang'}`;
+
+            renderAlertBanner(data, weekDays);
+
+            const todayActionBtn = document.getElementById('todayActionBtn');
+            const todayActionText = document.getElementById('todayActionText');
+            const todayActionIcon = document.getElementById('todayActionIcon');
+            const todayRecord = data[todayKey] || { status: 'Belum' };
+
+            if (todayIsWeekend) {
+                todayActionBtn.className = "bg-slate-900 border border-slate-800 text-slate-500 cursor-not-allowed font-medium py-3 px-3 rounded-2xl text-xs flex items-center justify-center space-x-1.5 opacity-60";
+                todayActionIcon.innerText = "☕";
+                todayActionText.innerText = "Akhir Pekan";
+            } else if (todayRecord.status === 'Sudah') {
+                todayActionBtn.className = "bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-300 font-medium py-3 px-3 rounded-2xl text-xs transition-all border border-slate-700 flex items-center justify-center space-x-1.5";
+                todayActionIcon.innerText = "↺";
+                todayActionText.innerText = "Batalkan Selesai";
+            } else {
+                todayActionBtn.className = "bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold py-3 px-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/20 border border-emerald-500 flex items-center justify-center space-x-1.5";
+                todayActionIcon.innerText = "✓";
+                todayActionText.innerText = "Tandai Selesai Hari Ini";
+            }
+
+            const container = document.getElementById('weekdayListContainer');
+            container.innerHTML = '';
+
+            let weekFilledCount = 0;
+            const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+
+            weekDays.forEach((dateObj, idx) => {
+                const dateKey = formatDateKey(dateObj);
+                const isToday = (dateKey === todayKey);
+                const record = data[dateKey] || { status: 'Belum', timestamp: null };
+                const isDone = (record.status === 'Sudah');
+                if (isDone) weekFilledCount++;
+
+                const dayCard = document.createElement('div');
+                dayCard.className = `p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                    isToday 
+                        ? 'bg-slate-900 border-slate-700 shadow-md ring-1 ring-slate-700/60' 
+                        : 'bg-dark-900/80 border-slate-800/80'
+                }`;
+
+                dayCard.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                            isDone 
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                                : (isToday ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700/50')
+                        }">
+                            ${isDone ? '✓' : '✕'}
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200 flex items-center space-x-1.5">
+                                <span>${dayNames[idx]}</span>
+                                <span class="text-[10px] font-normal text-slate-400">(${formatDateShort(dateObj)})</span>
+                                ${isToday ? '<span class="text-[8px] uppercase tracking-wider bg-brand-600/30 text-brand-300 border border-brand-500/30 px-1 py-0.2 rounded font-bold">Hari Ini</span>' : ''}
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">
+                                ${isDone ? `<span class="text-emerald-400 font-medium">Sudah (${record.timestamp})</span>` : '<span class="text-slate-500">Belum diisi</span>'}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="toggleDateStatus('${dateKey}')" class="text-xs px-3 py-1.5 rounded-xl font-medium transition-all active:scale-95 ${
+                        isDone 
+                            ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700' 
+                            : 'bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30'
+                    }">
+                        ${isDone ? 'Ubah' : 'Isi'}
+                    </button>
+                `;
+                container.appendChild(dayCard);
+            });
+
+            document.getElementById('weekProgressBadge').innerText = `${weekFilledCount}/5 Diisi`;
+        }
+
+        window.onload = function() {
+            renderApp();
+        };
+    </script>
+</body>
+</html>
