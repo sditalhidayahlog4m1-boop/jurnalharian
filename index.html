@@ -147,10 +147,10 @@
         </div>
     </div>
 
-    <!-- Firebase SDK (Modular CDN) -->
+    <!-- Firebase Firestore SDK & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB104GkJ2kD75zitiens1H2QU8AWVX-Lsg",
@@ -162,17 +162,25 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const journalRef = ref(db, 'jurnal_harian_data');
+        const db = getFirestore(app);
+        const docRef = doc(db, "jurnal_db", "harian_data");
 
         let remoteData = {};
         let weekOffset = 0;
 
-        // Mendengarkan perubahan data secara Real-time dari Firebase
-        onValue(journalRef, (snapshot) => {
-            remoteData = snapshot.val() || {};
+        // Sinkronisasi data secara Real-time dari Cloud Firestore
+        onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                remoteData = docSnap.data().records || {};
+            } else {
+                remoteData = {};
+            }
             renderApp();
         });
+
+        function saveToFirestore(data) {
+            setDoc(docRef, { records: data }, { merge: true });
+        }
 
         function formatDateKey(dateObj) {
             const year = dateObj.getFullYear();
@@ -198,20 +206,18 @@
         }
 
         window.toggleDateStatus = function(dateKey) {
-            let currentRecord = remoteData[dateKey] || { status: 'Belum' };
-            let updatedRecord;
+            let data = { ...remoteData };
 
-            if (currentRecord.status !== 'Sudah') {
+            if (!data[dateKey] || data[dateKey].status !== 'Sudah') {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                updatedRecord = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                data[dateKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             } else {
-                updatedRecord = { status: 'Belum', timestamp: null };
+                data[dateKey] = { status: 'Belum', timestamp: null };
             }
 
-            // Kirim data terbaru ke Firebase (Real-time update)
-            set(ref(db, `jurnal_harian_data/${dateKey}`), updatedRecord);
+            saveToFirestore(data);
         }
 
         window.toggleTodayStatus = function() {
@@ -238,13 +244,14 @@
                 isConfirm: true,
                 onConfirm: function() {
                     const monday = getMondayOfWeek(weekOffset);
-                    let updates = {};
+                    let data = { ...remoteData };
+                    
                     for (let i = 0; i < 5; i++) {
                         const d = new Date(monday);
                         d.setDate(monday.getDate() + i);
-                        updates[formatDateKey(d)] = null; // Menghapus data di Firebase
+                        delete data[formatDateKey(d)];
                     }
-                    update(journalRef, updates);
+                    saveToFirestore(data);
                 }
             });
         }
