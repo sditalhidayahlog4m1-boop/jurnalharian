@@ -56,11 +56,6 @@
             </div>
 
             <div class="flex items-center space-x-2">
-                <!-- Status Koneksi Firebase -->
-                <div id="syncStatusBadge" class="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 flex items-center space-x-1">
-                    <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                    <span id="syncText">Menghubungkan...</span>
-                </div>
                 <!-- Total Terisi Minggu Ini Badge -->
                 <div id="weekProgressBadge" class="bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-xs font-semibold text-emerald-400">
                     0/5 Diisi
@@ -109,10 +104,10 @@
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
-            <!-- Tombol 1: Buka Form Jurnal -->
+            <!-- Tombol 1: Buka Form Jurnal (Buka di jendela yang sama) -->
             <a href="https://cloud.seatable.io/dtable/forms/0d77e0bd-aa63-4d52-836d-e6bda0b236f6/" target="_self" 
                class="bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold py-3 px-3 rounded-2xl text-center shadow-md shadow-brand-600/20 transition-all flex items-center justify-center space-x-1.5 text-xs border border-brand-500/40">
-                <span>Buka Form Jurnal (Pa Andi) </span>
+                <span>Buka Form Jurnal (Pa Andi)</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
@@ -176,80 +171,56 @@
                     <span>Libur / Tanggal Merah</span>
                     <span>☕</span>
                 </button>
+                <button onclick="setStatusChoice('Belum')" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-2xl text-xs font-medium flex items-center justify-between transition-all active:scale-95">
+                    <span>Reset ke Belum Diisi</span>
+                    <span>✕</span>
+                </button>
             </div>
             <button onclick="closeStatusModal()" class="w-full py-2.5 bg-transparent hover:bg-slate-800 text-slate-400 font-medium rounded-xl text-xs transition-all">Tutup</button>
         </div>
     </div>
 
-    <!-- Firebase SDK Compat -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Firebase Firestore SDK & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    <script>
-        // Konfigurasi Firebase dengan databaseURL yang benar
         const firebaseConfig = {
-            apiKey: "AIzaSyB1O4GkJ2kD75zitieNs1H2QU8AWVX-Lsg",
+            apiKey: "AIzaSyB104GkJ2kD75zitiens1H2QU8AWVX-Lsg",
             authDomain: "jurnal-harianku.firebaseapp.com",
             projectId: "jurnal-harianku",
-            storageBucket: "jurnal-harianku.firebasestorage.app",
+            storageBucket: "jurnal-harianku.appspot.com",
             messagingSenderId: "882678031341",
-            appId: "1:882678031341:web:a804f699e4f01b632dfde4",
-            databaseURL: "https://jurnal-harianku-default-rtdb.firebaseio.com"
+            appId: "1:882678031341:web:a804f699e4f1b632dfde4"
         };
 
-        // Inisialisasi Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-        const jurnalRef = db.ref('jurnal_records');
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const docRef = doc(db, "jurnal_db", "harian_data");
 
-        let globalJurnalData = {};
+        let remoteData = {};
         let weekOffset = 0;
         let activeEditingDateKey = null;
 
-        // Listener Real-time Database
-        jurnalRef.on('value', (snapshot) => {
-            globalJurnalData = snapshot.val() || {};
-            updateSyncStatus('connected', 'Tersinkronisasi');
+        // Real-time listener dari Firestore
+        onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                remoteData = docSnap.data().records || {};
+            } else {
+                remoteData = {};
+            }
             renderApp();
-        }, (error) => {
-            console.error("Gagal sinkronisasi Firebase:", error);
-            updateSyncStatus('error', 'Gagal Sinkron');
         });
 
-        function updateSyncStatus(status, text) {
-            const badge = document.getElementById('syncStatusBadge');
-            const txt = document.getElementById('syncText');
-            const dot = document.getElementById('syncDot');
-            txt.innerText = text;
-            if (status === 'connected') {
-                badge.className = "bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 flex items-center space-x-1";
-                dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
-            } else {
-                badge.className = "bg-rose-950/60 border border-rose-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 flex items-center space-x-1";
-                dot.className = "w-1.5 h-1.5 rounded-full bg-rose-400";
-            }
-        }
-
-        function downloadHtmlFile() {
-            const htmlContent = document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'pelacak_jurnal_harian.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        function saveToFirestore(data) {
+            setDoc(docRef, { records: data }, { merge: true });
         }
 
         function formatDateKey(dateObj) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}_${month}_${day}`;
+            return `${year}-${month}-${day}`;
         }
 
         function isWeekend(dateObj) {
@@ -268,56 +239,7 @@
             return monday;
         }
 
-        function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
-            const modal = document.getElementById('customModal');
-            const modalCard = document.getElementById('modalCard');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalSubtitle = document.getElementById('modalSubtitle');
-            const modalIcon = document.getElementById('modalIcon');
-            const modalMessage = document.getElementById('modalMessage');
-            const modalCancelBtn = document.getElementById('modalCancelBtn');
-            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-
-            modalTitle.innerText = title || "Pemberitahuan";
-            modalSubtitle.innerText = subtitle || "Info Sistem";
-            modalIcon.innerText = icon || "ℹ️";
-            modalMessage.innerText = message || "";
-
-            if (isConfirm) {
-                modalCancelBtn.classList.remove('hidden');
-                modalConfirmBtn.innerText = "Ya, Lanjutkan";
-                modalConfirmBtn.onclick = function() {
-                    closeCustomModal();
-                    if (onConfirm) onConfirm();
-                };
-            } else {
-                modalCancelBtn.classList.add('hidden');
-                modalConfirmBtn.innerText = "Mengerti";
-                modalConfirmBtn.onclick = function() {
-                    closeCustomModal();
-                };
-            }
-
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modalCard.classList.remove('scale-95', 'opacity-0');
-                modalCard.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
-
-        function closeCustomModal() {
-            const modal = document.getElementById('customModal');
-            const modalCard = document.getElementById('modalCard');
-            
-            modalCard.classList.remove('scale-100', 'opacity-100');
-            modalCard.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 200);
-        }
-
-        function openStatusModal(dateKey) {
+        window.openStatusModal = function(dateKey) {
             activeEditingDateKey = dateKey;
             const modal = document.getElementById('statusModal');
             const modalCard = document.getElementById('statusModalCard');
@@ -329,7 +251,7 @@
             }, 10);
         }
 
-        function closeStatusModal() {
+        window.closeStatusModal = function() {
             const modal = document.getElementById('statusModal');
             const modalCard = document.getElementById('statusModalCard');
             
@@ -342,29 +264,26 @@
             }, 200);
         }
 
-        function setStatusChoice(status) {
+        window.setStatusChoice = function(status) {
             if (!activeEditingDateKey) return;
-            
-            let updateObj = {};
+            let data = { ...remoteData };
+
             if (status === 'Sudah') {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                updateObj = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                data[activeEditingDateKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             } else if (status === 'Libur') {
-                updateObj = { status: 'Libur', timestamp: 'Libur Sekolah' };
+                data[activeEditingDateKey] = { status: 'Libur', timestamp: 'Libur Sekolah' };
             } else {
-                updateObj = null;
+                delete data[activeEditingDateKey];
             }
 
-            jurnalRef.child(activeEditingDateKey).set(updateObj).then(() => {
-                closeStatusModal();
-            }).catch((err) => {
-                alert("Gagal menyimpan ke Firebase: " + err.message);
-            });
+            saveToFirestore(data);
+            closeStatusModal();
         }
 
-        function toggleTodayStatus() {
+        window.toggleTodayStatus = function() {
             const today = new Date();
             if (isWeekend(today)) {
                 openCustomModal({
@@ -377,22 +296,21 @@
                 return;
             }
             const todayKey = formatDateKey(today);
-            const currentRecord = globalJurnalData[todayKey] || { status: 'Belum' };
+            let data = { ...remoteData };
+            const currentRecord = data[todayKey] || { status: 'Belum' };
 
-            let updateObj = null;
-            if (currentRecord.status !== 'Sudah') {
+            if (currentRecord.status === 'Sudah') {
+                delete data[todayKey];
+            } else {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                updateObj = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                data[todayKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             }
-
-            jurnalRef.child(todayKey).set(updateObj).catch((err) => {
-                alert("Gagal memperbarui status: " + err.message);
-            });
+            saveToFirestore(data);
         }
 
-        function resetCurrentWeek() {
+        window.resetCurrentWeek = function() {
             openCustomModal({
                 title: "Reset Minggu Ini",
                 subtitle: "Konfirmasi Tindakan",
@@ -401,20 +319,19 @@
                 isConfirm: true,
                 onConfirm: function() {
                     const monday = getMondayOfWeek(weekOffset);
-                    let updates = {};
+                    let data = { ...remoteData };
+                    
                     for (let i = 0; i < 5; i++) {
                         const d = new Date(monday);
                         d.setDate(monday.getDate() + i);
-                        updates[formatDateKey(d)] = null;
+                        delete data[formatDateKey(d)];
                     }
-                    jurnalRef.update(updates).catch((err) => {
-                        alert("Gagal mereset data: " + err.message);
-                    });
+                    saveToFirestore(data);
                 }
             });
         }
 
-        function changeWeek(delta) {
+        window.changeWeek = function(delta) {
             weekOffset += delta;
             renderApp();
         }
@@ -422,11 +339,9 @@
         function calculateMissedWeekdays(data) {
             const today = new Date();
             let currentDate = new Date(today);
-            currentDate.setDate(currentDate.getDate() - 1); // Mulai dari kemarin agar hari ini tidak dihitung dobel
             let missedCount = 0;
 
-            // Batasi pengecekan ke belakang maksimal 5 hari kerja terakhir saja agar tidak menumpuk error perhitungan
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 30; i++) {
                 if (isWeekend(currentDate)) {
                     currentDate.setDate(currentDate.getDate() - 1);
                     continue;
@@ -495,7 +410,7 @@
             } else {
                 const missedCount = calculateMissedWeekdays(data);
                 if (missedCount >= 2) {
-                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-rose-950/60 border-rose-500/50";
+                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-rose-950/60 border-rose-500/50 animate-pulse";
                     alertBannerBg.className = "absolute inset-0 opacity-20 bg-rose-500";
                     alertIcon.innerText = "🚨";
                     alertTitle.innerText = `Perhatian: ${missedCount} Hari Kerja Terlewat!`;
@@ -513,7 +428,7 @@
         }
 
         function renderApp() {
-            const data = globalJurnalData;
+            const data = remoteData;
             const today = new Date();
             const todayKey = formatDateKey(today);
             const todayIsWeekend = isWeekend(today);
@@ -622,6 +537,71 @@
             });
 
             document.getElementById('weekProgressBadge').innerText = `${weekFilledCount}/5 Diisi`;
+        }
+    </script>
+
+    <!-- Global functions helper untuk Modal Custom & Download -->
+    <script>
+        function downloadHtmlFile() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pelacak_jurnal_harian.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+            modalTitle.innerText = title || "Pemberitahuan";
+            modalSubtitle.innerText = subtitle || "Info Sistem";
+            modalIcon.innerText = icon || "ℹ️";
+            modalMessage.innerText = message || "";
+
+            if (isConfirm) {
+                modalCancelBtn.classList.remove('hidden');
+                modalConfirmBtn.innerText = "Ya, Lanjutkan";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                    if (onConfirm) onConfirm();
+                };
+            } else {
+                modalCancelBtn.classList.add('hidden');
+                modalConfirmBtn.innerText = "Mengerti";
+                modalConfirmBtn.onclick = function() {
+                    closeCustomModal();
+                };
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalCard.classList.remove('scale-95', 'opacity-0');
+                modalCard.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCustomModal() {
+            const modal = document.getElementById('customModal');
+            const modalCard = document.getElementById('modalCard');
+            
+            modalCard.classList.remove('scale-100', 'opacity-100');
+            modalCard.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
         }
     </script>
 </body>
