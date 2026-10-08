@@ -56,6 +56,11 @@
             </div>
 
             <div class="flex items-center space-x-2">
+                <!-- Status Koneksi Firebase -->
+                <div id="syncStatusBadge" class="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="syncText">Menghubungkan...</span>
+                </div>
                 <!-- Total Terisi Minggu Ini Badge -->
                 <div id="weekProgressBadge" class="bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-xs font-semibold text-emerald-400">
                     0/5 Diisi
@@ -104,7 +109,7 @@
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
-            <!-- Tombol 1: Buka Form Jurnal (target="_self" untuk buka di jendela yang sama) -->
+            <!-- Tombol 1: Buka Form Jurnal -->
             <a href="https://cloud.seatable.io/dtable/forms/0d77e0bd-aa63-4d52-836d-e6bda0b236f6/" target="_self" 
                class="bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold py-3 px-3 rounded-2xl text-center shadow-md shadow-brand-600/20 transition-all flex items-center justify-center space-x-1.5 text-xs border border-brand-500/40">
                 <span>Buka Form Jurnal (Pa Andi) </span>
@@ -176,10 +181,53 @@
         </div>
     </div>
 
+    <!-- Firebase SDK Modular / Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <script>
-        const STORAGE_KEY = 'pelacak_jurnal_5hari_v2';
+        // Konfigurasi Firebase Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1O4GkJ2kD75zitieNs1H2QU8AWVX-Lsg",
+            authDomain: "jurnal-harianku.firebaseapp.com",
+            projectId: "jurnal-harianku",
+            storageBucket: "jurnal-harianku.firebasestorage.app",
+            messagingSenderId: "882678031341",
+            appId: "1:882678031341:web:a804f699e4f01b632dfde4",
+            databaseURL: "https://jurnal-harianku-default-rtdb.firebaseio.com/"
+        };
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const jurnalRef = db.ref('jurnal_records');
+
+        let globalJurnalData = {};
         let weekOffset = 0;
         let activeEditingDateKey = null;
+
+        // Mendengarkan perubahan data secara real-time dari Firebase
+        jurnalRef.on('value', (snapshot) => {
+            globalJurnalData = snapshot.val() || {};
+            updateSyncStatus('connected', 'Tersinkronisasi');
+            renderApp();
+        }, (error) => {
+            console.error("Gagal sinkronisasi Firebase:", error);
+            updateSyncStatus('error', 'Gagal Sinkron');
+        });
+
+        function updateSyncStatus(status, text) {
+            const badge = document.getElementById('syncStatusBadge');
+            const txt = document.getElementById('syncText');
+            txt.innerText = text;
+            if (status === 'connected') {
+                badge.className = "bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 flex items-center space-x-1";
+                badge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
+            } else {
+                badge.className = "bg-rose-950/60 border border-rose-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 flex items-center space-x-1";
+                badge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-rose-400";
+            }
+        }
 
         function downloadHtmlFile() {
             const htmlContent = document.documentElement.outerHTML;
@@ -198,7 +246,7 @@
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return `${year}_${month}_${day}`; // Menggunakan underscore karena Firebase tidak mendukung karakter '-' pada key path langsung di beberapa kasus
         }
 
         function isWeekend(dateObj) {
@@ -215,14 +263,6 @@
             monday.setDate(diffToMonday + (offset * 7));
             monday.setHours(0, 0, 0, 0);
             return monday;
-        }
-
-        function getStoredData() {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-        }
-
-        function saveStoredData(data) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
 
         function openCustomModal({ title, subtitle, icon, message, isConfirm = false, onConfirm = null }) {
@@ -301,22 +341,24 @@
 
         function setStatusChoice(status) {
             if (!activeEditingDateKey) return;
-            let data = getStoredData();
-
+            
+            let updateObj = {};
             if (status === 'Sudah') {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                data[activeEditingDateKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                updateObj = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             } else if (status === 'Libur') {
-                data[activeEditingDateKey] = { status: 'Libur', timestamp: 'Libur Sekolah' };
+                updateObj = { status: 'Libur', timestamp: 'Libur Sekolah' };
             } else {
-                delete data[activeEditingDateKey];
+                updateObj = null;
             }
 
-            saveStoredData(data);
-            closeStatusModal();
-            renderApp();
+            jurnalRef.child(activeEditingDateKey).set(updateObj).then(() => {
+                closeStatusModal();
+            }).catch((err) => {
+                alert("Gagal menyimpan ke Firebase: " + err.message);
+            });
         }
 
         function toggleTodayStatus() {
@@ -332,19 +374,19 @@
                 return;
             }
             const todayKey = formatDateKey(today);
-            let data = getStoredData();
-            const currentRecord = data[todayKey] || { status: 'Belum' };
+            const currentRecord = globalJurnalData[todayKey] || { status: 'Belum' };
 
-            if (currentRecord.status === 'Sudah') {
-                delete data[todayKey];
-            } else {
+            let updateObj = null;
+            if (currentRecord.status !== 'Sudah') {
                 const now = new Date();
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                data[todayKey] = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
+                updateObj = { status: 'Sudah', timestamp: `${hours}:${minutes} WIB` };
             }
-            saveStoredData(data);
-            renderApp();
+
+            jurnalRef.child(todayKey).set(updateObj).catch((err) => {
+                alert("Gagal memperbarui status: " + err.message);
+            });
         }
 
         function resetCurrentWeek() {
@@ -356,15 +398,15 @@
                 isConfirm: true,
                 onConfirm: function() {
                     const monday = getMondayOfWeek(weekOffset);
-                    let data = getStoredData();
-                    
+                    let updates = {};
                     for (let i = 0; i < 5; i++) {
                         const d = new Date(monday);
                         d.setDate(monday.getDate() + i);
-                        delete data[formatDateKey(d)];
+                        updates[formatDateKey(d)] = null;
                     }
-                    saveStoredData(data);
-                    renderApp();
+                    jurnalRef.update(updates).catch((err) => {
+                        alert("Gagal mereset data: " + err.message);
+                    });
                 }
             });
         }
@@ -466,7 +508,7 @@
         }
 
         function renderApp() {
-            const data = getStoredData();
+            const data = globalJurnalData;
             const today = new Date();
             const todayKey = formatDateKey(today);
             const todayIsWeekend = isWeekend(today);
@@ -576,10 +618,6 @@
 
             document.getElementById('weekProgressBadge').innerText = `${weekFilledCount}/5 Diisi`;
         }
-
-        window.onload = function() {
-            renderApp();
-        };
     </script>
 </body>
 </html>
