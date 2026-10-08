@@ -58,7 +58,7 @@
             <div class="flex items-center space-x-2">
                 <!-- Status Koneksi Firebase -->
                 <div id="syncStatusBadge" class="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 flex items-center space-x-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
                     <span id="syncText">Menghubungkan...</span>
                 </div>
                 <!-- Total Terisi Minggu Ini Badge -->
@@ -181,12 +181,12 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Modular / Compat -->
+    <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <script>
-        // Konfigurasi Firebase Anda
+        // Konfigurasi Firebase dengan databaseURL yang benar
         const firebaseConfig = {
             apiKey: "AIzaSyB1O4GkJ2kD75zitieNs1H2QU8AWVX-Lsg",
             authDomain: "jurnal-harianku.firebaseapp.com",
@@ -194,11 +194,13 @@
             storageBucket: "jurnal-harianku.firebasestorage.app",
             messagingSenderId: "882678031341",
             appId: "1:882678031341:web:a804f699e4f01b632dfde4",
-            databaseURL: "https://jurnal-harianku-default-rtdb.firebaseio.com/"
+            databaseURL: "https://jurnal-harianku-default-rtdb.firebaseio.com"
         };
 
         // Inisialisasi Firebase
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.database();
         const jurnalRef = db.ref('jurnal_records');
 
@@ -206,7 +208,7 @@
         let weekOffset = 0;
         let activeEditingDateKey = null;
 
-        // Mendengarkan perubahan data secara real-time dari Firebase
+        // Listener Real-time Database
         jurnalRef.on('value', (snapshot) => {
             globalJurnalData = snapshot.val() || {};
             updateSyncStatus('connected', 'Tersinkronisasi');
@@ -219,13 +221,14 @@
         function updateSyncStatus(status, text) {
             const badge = document.getElementById('syncStatusBadge');
             const txt = document.getElementById('syncText');
+            const dot = document.getElementById('syncDot');
             txt.innerText = text;
             if (status === 'connected') {
                 badge.className = "bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 flex items-center space-x-1";
-                badge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
+                dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
             } else {
                 badge.className = "bg-rose-950/60 border border-rose-500/40 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 flex items-center space-x-1";
-                badge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-rose-400";
+                dot.className = "w-1.5 h-1.5 rounded-full bg-rose-400";
             }
         }
 
@@ -246,7 +249,7 @@
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}_${month}_${day}`; // Menggunakan underscore karena Firebase tidak mendukung karakter '-' pada key path langsung di beberapa kasus
+            return `${year}_${month}_${day}`;
         }
 
         function isWeekend(dateObj) {
@@ -419,9 +422,11 @@
         function calculateMissedWeekdays(data) {
             const today = new Date();
             let currentDate = new Date(today);
+            currentDate.setDate(currentDate.getDate() - 1); // Mulai dari kemarin agar hari ini tidak dihitung dobel
             let missedCount = 0;
 
-            for (let i = 0; i < 30; i++) {
+            // Batasi pengecekan ke belakang maksimal 5 hari kerja terakhir saja agar tidak menumpuk error perhitungan
+            for (let i = 0; i < 5; i++) {
                 if (isWeekend(currentDate)) {
                     currentDate.setDate(currentDate.getDate() - 1);
                     continue;
@@ -432,7 +437,7 @@
 
                 if (record.status === 'Belum') {
                     missedCount++;
-                } else if (record.status === 'Sudah') {
+                } else if (record.status === 'Sudah' || record.status === 'Libur') {
                     break;
                 }
 
@@ -490,7 +495,7 @@
             } else {
                 const missedCount = calculateMissedWeekdays(data);
                 if (missedCount >= 2) {
-                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-rose-950/60 border-rose-500/50 animate-pulse";
+                    alertBanner.className = "rounded-2xl p-3.5 border shadow-md relative overflow-hidden bg-rose-950/60 border-rose-500/50";
                     alertBannerBg.className = "absolute inset-0 opacity-20 bg-rose-500";
                     alertIcon.innerText = "🚨";
                     alertTitle.innerText = `Perhatian: ${missedCount} Hari Kerja Terlewat!`;
